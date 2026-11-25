@@ -1,0 +1,48 @@
+# Local stack with the API and worker tiers as separate services.
+#
+#   docker compose up --build                      # 1 API + 2 workers
+#   docker compose up -d --scale worker=5          # scale workers only
+#   docker compose up -d db                        # just Postgres, for `mvn verify` / `mvn spring-boot:run`
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: jobs
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jobs"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: &app-env
+      JOBS_DB_URL: jdbc:postgresql://db:5432/jobs
+      JOBS_DB_USER: postgres
+      JOBS_DB_PASSWORD: postgres
+      JOBS_WORKER_ENABLED: "false"
+    ports:
+      - "8080:8080"
+
+  worker:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started   # the API applies the schema migration first
+    environment:
+      <<: *app-env
+      JOBS_API_ENABLED: "false"
+      JOBS_WORKER_ENABLED: "true"
+      JOBS_WORKER_CONCURRENCY: "8"
+    deploy:
+      replicas: 2

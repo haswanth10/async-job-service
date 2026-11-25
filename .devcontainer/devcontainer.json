@@ -1,0 +1,11 @@
+{
+  "name": "async-job-service",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "21", "installMaven": "true" },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y postgresql jq && bash scripts/dev-db.sh",
+  "postStartCommand": "sudo service postgresql start",
+  "forwardPorts": [8080]
+}

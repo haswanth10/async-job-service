@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: async-job-service
+  datasource:
+    url: ${JOBS_DB_URL:jdbc:postgresql://localhost:5432/jobs}
+    username: ${JOBS_DB_USER:postgres}
+    password: ${JOBS_DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: ${JOBS_DB_POOL_SIZE:10}
+  flyway:
+    enabled: ${JOBS_DB_MIGRATE:true}
+  mvc:
+    problemdetails:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 40s
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+# Structured (JSON) logs: set LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs (or logstash) in production.
+
+jobs:
+  api:
+    enabled: ${JOBS_API_ENABLED:true}
+    # Reject submissions with 429 once this many jobs are pending. 0 = unlimited.
+    max-queue-depth: ${JOBS_API_MAX_QUEUE_DEPTH:0}
+    max-payload-bytes: ${JOBS_API_MAX_PAYLOAD_BYTES:262144}
+  defaults:
+    priority: 0
+    max-retries: 3
+    timeout-seconds: 30
+  worker:
+    enabled: ${JOBS_WORKER_ENABLED:true}
+    # Jobs executed in parallel by this process.
+    concurrency: ${JOBS_WORKER_CONCURRENCY:8}
+    # Sleep between polls when the queue is empty.
+    poll-interval: ${JOBS_WORKER_POLL_INTERVAL:500ms}
+    # Lease = per-attempt timeout + this grace. A lease only expires if the worker died or stalled.
+    lease-grace: ${JOBS_WORKER_LEASE_GRACE:15s}
+    # How often expired leases are reclaimed.
+    reap-interval: ${JOBS_WORKER_REAP_INTERVAL:5s}
+    # On SIGTERM, wait this long for in-flight jobs before releasing them back to the queue.
+    shutdown-grace: ${JOBS_WORKER_SHUTDOWN_GRACE:25s}
+    backoff:
+      base: ${JOBS_WORKER_BACKOFF_BASE:1s}
+      max: ${JOBS_WORKER_BACKOFF_MAX:5m}
+      jitter: ${JOBS_WORKER_BACKOFF_JITTER:true}
